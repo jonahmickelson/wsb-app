@@ -1,0 +1,10 @@
+praw
+pandas
+yfinance
+fastapi
+uvicorn
+python-dotenv
+sqlalchemy
+streamlit
+psycopg2-binary
+altair
