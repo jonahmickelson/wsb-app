@@ -1,8 +1,0 @@
-# Ignore Python cache
-__pycache__/
-
-# Ignore local database
-wsb_mentions.sqlite
-
-# Ignore secrets
-.env
