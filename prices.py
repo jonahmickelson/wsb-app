@@ -1,13 +1,8 @@
 # prices.py
 import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta, timezone
 
 def fetch_price_table(tickers: list[str], days_back: int = 7) -> pd.DataFrame:
-    """
-    Download last few days of Adjusted Close for the tickers.
-    Returns tidy df: date, ticker, close, ret1d (as percent, not decimal)
-    """
     if not tickers:
         return pd.DataFrame(columns=["date","ticker","close","ret1d"])
 
@@ -29,7 +24,7 @@ def fetch_price_table(tickers: list[str], days_back: int = 7) -> pd.DataFrame:
                 sub["ticker"] = t
                 frames.append(sub)
     else:
-        sub = data.rename(columns={"Close": "close"})[["close"]].copy()
+        sub = data.rename(columns={"Close":"close"})[["close"]].copy()
         if len(tickers) == 1:
             sub["ticker"] = tickers[0]
             frames.append(sub)
@@ -37,18 +32,15 @@ def fetch_price_table(tickers: list[str], days_back: int = 7) -> pd.DataFrame:
     if not frames:
         return pd.DataFrame(columns=["date","ticker","close","ret1d"])
 
-    out = pd.concat(frames).reset_index()  # index is Date
-    out = out.rename(columns={"Date": "date"})
+    out = pd.concat(frames).reset_index()
+    out = out.rename(columns={"Date":"date"})
     out["date"] = out["date"].dt.tz_localize(None).dt.date.astype(str)
 
-    # compute 1d return per ticker, in percent
     out["ret1d"] = (
-        out.sort_values(["ticker", "date"])
+        out.sort_values(["ticker","date"])
            .groupby("ticker")["close"]
            .pct_change()
-           .mul(100)    # convert to percent
-           .round(2)    # 2 decimal places
+           .mul(100)   # ✅ percent instead of fraction
+           .round(2)
     )
-
-    return out[["date", "ticker", "close", "ret1d"]]
-
+    return out[["date","ticker","close","ret1d"]]

@@ -2,9 +2,9 @@ name: Run WSB Pipeline Daily
 
 on:
   schedule:
-    # Run Mon-Fri at 21:05 UTC (4:05 PM EST in winter, 5:05 PM EDT in summer)
+    # Run Mon–Fri at 21:05 UTC (4:05 PM EST in winter, 5:05 PM EDT in summer)
     - cron: "5 21 * * 1-5"
-  workflow_dispatch: {}  # allows manual run
+  workflow_dispatch: {}  # allows manual run from the Actions tab
 
 jobs:
   run-pipeline:

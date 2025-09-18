@@ -1,76 +1,65 @@
 # scraper.py
-import os, json, re
-from time import time
-from collections import Counter
-from datetime import datetime, timezone, timedelta
-
+import os
+import json
+import re
 import praw
 import pandas as pd
-from dotenv import load_dotenv
-import os
+from collections import Counter
+from time import time
 
-load_dotenv()
+# ✅ Build relative path for tickers JSON
+BASE_DIR = os.path.dirname(__file__)
+COMPANY_JSON_PATH = os.path.join(BASE_DIR, "data", "company_tickers.json")
 
-COMPANY_JSON_PATH = os.path.join("data", "company_tickers.json")
-SUBREDDIT = os.getenv("WSB_SUBREDDIT", "wallstreetbets")
-SUBMISSION_LIMIT = int(os.getenv("SUBMISSION_LIMIT", "2000"))   # high to cover 24h
-TIME_WINDOW_HOURS = int(os.getenv("TIME_WINDOW_HOURS", "24"))
-COUNT_COMMENTS = os.getenv("COUNT_COMMENTS", "true").lower() == "true"
-REQUIRE_DOLLAR_FOR_SHORT = os.getenv("REQUIRE_DOLLAR_FOR_SHORT", "true").lower() == "true"
-
-REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID", "Rrgt0Tn8W4H5q8B2_7kF7Q")
-REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET", "lAoIJZrbFulLcs3VhWGybzOga7E5lA")
-REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "wsb-tracker by u/According_Camel_6603")
-
-# Load mapping of valid tickers -> company title
 with open(COMPANY_JSON_PATH, "r") as f:
     raw = json.load(f)
-ticker_to_title = {str(r.get("ticker","")).upper(): r.get("title","") for r in raw.values() if r.get("ticker")}
+
+records = list(raw.values())
+ticker_to_title = {
+    str(rec.get("ticker", "")).upper(): rec.get("title", "")
+    for rec in records if rec.get("ticker")
+}
 valid_tickers = set(ticker_to_title.keys())
 
-# ALL-CAPS tickers (2–5 letters), optional leading $
+# regex for ALL CAPS tickers
 TICKER_RE = re.compile(r'(?<![A-Z0-9])\$?[A-Z]{2,5}\b')
 
 def extract_tickers(text: str) -> list[str]:
-    if not text: return []
+    if not text:
+        return []
     found = []
     for raw_match in TICKER_RE.findall(text):
         has_dollar = raw_match.startswith("$")
         sym = raw_match.lstrip("$")
         if sym not in valid_tickers:
             continue
-        if REQUIRE_DOLLAR_FOR_SHORT and len(sym) <= 2 and not has_dollar:
+        if len(sym) <= 2 and not has_dollar:
             continue
         found.append(sym)
     return found
 
-def collect_mentions_24h() -> pd.DataFrame:
+def collect_mentions_24h(limit=300, hours=24, count_comments=True):
     reddit = praw.Reddit(
-        client_id=REDDIT_CLIENT_ID,
-        client_secret=REDDIT_CLIENT_SECRET,
-        user_agent=REDDIT_USER_AGENT,
+        client_id=os.getenv("REDDIT_CLIENT_ID"),
+        client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+        user_agent=os.getenv("REDDIT_USER_AGENT"),
     )
 
-    mention_counter = Counter()
-    cutoff = time() - TIME_WINDOW_HOURS * 3600
-    sub = reddit.subreddit(SUBREDDIT)
+    cutoff = time() - hours * 3600
+    sub = reddit.subreddit("wallstreetbets")
+    counter = Counter()
 
-    for submission in sub.new(limit=SUBMISSION_LIMIT):
+    for submission in sub.new(limit=limit):
         if getattr(submission, "created_utc", 0) < cutoff:
             continue
         content = f"{submission.title or ''}\n{submission.selftext or ''}"
-        mention_counter.update(extract_tickers(content))
-
-        if COUNT_COMMENTS:
+        counter.update(extract_tickers(content))
+        if count_comments:
             submission.comments.replace_more(limit=0)
             for c in submission.comments.list():
-                mention_counter.update(extract_tickers(getattr(c, "body", "")))
+                counter.update(extract_tickers(getattr(c, "body", "")))
 
-    # date label = UTC day for the window end (e.g., “today” UTC)
-    day_utc = datetime.now(timezone.utc).date().isoformat()
-    df = (pd.DataFrame(mention_counter.items(), columns=["ticker","mentions"])
-            .assign(title=lambda d: d["ticker"].map(ticker_to_title),
-                    date=day_utc)
-            .sort_values("mentions", ascending=False)
-            .reset_index(drop=True))
-    return df[["date","ticker","mentions","title"]]
+    today = pd.Timestamp.utcnow().normalize()
+    df = pd.DataFrame(counter.items(), columns=["ticker", "mentions"])
+    df["date"] = today
+    return df[["date", "ticker", "mentions"]]
