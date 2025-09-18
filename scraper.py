@@ -7,10 +7,11 @@ from datetime import datetime, timezone, timedelta
 import praw
 import pandas as pd
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-COMPANY_JSON_PATH = os.getenv("COMPANY_JSON_PATH", r"C:\Users\jonah\OneDrive\Desktop\WSB-App\data\company_tickers.json")
+COMPANY_JSON_PATH = os.path.join("data", "company_tickers.json")
 SUBREDDIT = os.getenv("WSB_SUBREDDIT", "wallstreetbets")
 SUBMISSION_LIMIT = int(os.getenv("SUBMISSION_LIMIT", "2000"))   # high to cover 24h
 TIME_WINDOW_HOURS = int(os.getenv("TIME_WINDOW_HOURS", "24"))
