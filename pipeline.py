@@ -19,6 +19,10 @@ def main():
     tickers = sorted(df_m["ticker"].unique().tolist())
     df_p = fetch_price_table(tickers, days_back=7)
 
+    # ✅ Make sure both 'date' columns are plain strings (YYYY-MM-DD)
+    df_m["date"] = pd.to_datetime(df_m["date"]).dt.date.astype(str)
+    df_p["date"] = pd.to_datetime(df_p["date"]).dt.date.astype(str)
+
     df = df_m.merge(df_p, on=["date", "ticker"], how="left")
 
     if os.path.exists(OUT_FILE):

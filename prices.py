@@ -36,11 +36,13 @@ def fetch_price_table(tickers: list[str], days_back: int = 7) -> pd.DataFrame:
     out = out.rename(columns={"Date":"date"})
     out["date"] = out["date"].dt.tz_localize(None).dt.date.astype(str)
 
+    # ✅ explicitly disable forward filling to avoid warning
     out["ret1d"] = (
         out.sort_values(["ticker","date"])
            .groupby("ticker")["close"]
-           .pct_change()
-           .mul(100)   # ✅ percent instead of fraction
+           .pct_change(fill_method=None)
+           .mul(100)   # percent
            .round(2)
     )
+
     return out[["date","ticker","close","ret1d"]]
