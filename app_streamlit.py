@@ -66,10 +66,13 @@ range_option = st.radio(
 )
 
 if not hist.empty:
+    # Ensure dates are tz-naive
+    hist["date"] = pd.to_datetime(hist["date"]).dt.tz_localize(None)
+
     # Apply time filter
     if range_option != "All":
         days_map = {"1W": 7, "1M": 30, "6M": 180, "1Y": 365}
-        cutoff = pd.Timestamp.utcnow().normalize() - pd.Timedelta(days=days_map[range_option])
+        cutoff = (pd.Timestamp.utcnow().normalize() - pd.Timedelta(days=days_map[range_option])).tz_localize(None)
         hist = hist[hist["date"] >= cutoff]
 
     st.subheader(f"{choice} – Price (line) & WSB Mentions (bars) over time")
