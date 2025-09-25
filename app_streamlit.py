@@ -77,10 +77,16 @@ if not hist.empty:
 
     st.subheader(f"{choice} – Price (line) & WSB Mentions (bars) over time")
 
-    # Price line chart
+    # Calculate dynamic y-axis limits
+    min_price = hist["close"].min()
+    max_price = hist["close"].max()
+    y_min = min_price * 0.95   # 5% below min
+    y_max = max_price * 1.05   # 5% above max
+
+    # Price line chart with dynamic y scale
     price_chart = alt.Chart(hist).mark_line(color="blue").encode(
         x=alt.X("date:T", title="Date"),
-        y=alt.Y("close:Q", title="Close Price"),
+        y=alt.Y("close:Q", title="Close Price", scale=alt.Scale(domain=[y_min, y_max])),
         tooltip=["date:T", "close:Q"]
     ).properties(height=300)
 
