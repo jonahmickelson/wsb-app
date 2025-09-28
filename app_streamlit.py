@@ -80,8 +80,8 @@ if not hist.empty:
     # Calculate dynamic y-axis limits
     min_price = hist["close"].min()
     max_price = hist["close"].max()
-    y_min = min_price * 0.95   # 5% below min
-    y_max = max_price * 1.05   # 5% above max
+    y_min = min_price * 0.99   # 1% below min
+    y_max = max_price * 1.01   # 1% above max
 
     # Price line chart with dynamic y scale
     price_chart = alt.Chart(hist).mark_line(color="blue").encode(
