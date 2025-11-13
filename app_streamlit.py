@@ -56,7 +56,7 @@ st.dataframe(
 
 # --- Historical Chart for Selected Ticker ---
 choice = st.selectbox("Select a ticker to view history:", sorted(df["ticker"].unique()))
-hist = df[df["ticker"] == choice].sort_values("date")
+hist = df[df["ticker"] == choice].sort_values("date").copy()  # copy to avoid SettingWithCopy
 
 # Add time range selection
 range_option = st.radio(
@@ -72,32 +72,41 @@ if not hist.empty:
     # Apply time filter
     if range_option != "All":
         days_map = {"1W": 7, "1M": 30, "6M": 180, "1Y": 365}
-        cutoff = (pd.Timestamp.utcnow().normalize() - pd.Timedelta(days=days_map[range_option])).tz_localize(None)
+        cutoff = (
+            pd.Timestamp.utcnow().normalize()
+            - pd.Timedelta(days=days_map[range_option])
+        ).tz_localize(None)
         hist = hist[hist["date"] >= cutoff]
 
-    st.subheader(f"{choice} – Price (line) & WSB Mentions (bars) over time")
+    # Re-check after filtering & NaNs in close
+    if hist.empty or hist["close"].dropna().empty:
+        st.warning("No price data available for this ticker and time range.")
+    else:
+        st.subheader(f"{choice} – Price (line) & WSB Mentions (bars) over time")
 
-    # Calculate dynamic y-axis limits
-    min_price = hist["close"].min()
-    max_price = hist["close"].max()
-    y_min = min_price * 0.99   # 1% below min
-    y_max = max_price * 1.01   # 1% above max
+        # Calculate dynamic y-axis limits
+        min_price = hist["close"].min()
+        max_price = hist["close"].max()
+        y_min = float(min_price * 0.99)   # 1% below min
+        y_max = float(max_price * 1.01)   # 1% above max
 
-    # Price line chart with dynamic y scale
-    price_chart = alt.Chart(hist).mark_line(color="blue").encode(
-        x=alt.X("date:T", title="Date"),
-        y=alt.Y("close:Q", title="Close Price", scale=alt.Scale(domain=[y_min, y_max])),
-        tooltip=["date:T", "close:Q"]
-    ).properties(height=300)
+        # Price line chart with dynamic y scale
+        price_chart = alt.Chart(hist).mark_line(color="blue").encode(
+            x=alt.X("date:T", title="Date"),
+            y=alt.Y("close:Q", title="Close Price", scale=alt.Scale(domain=[y_min, y_max])),
+            tooltip=["date:T", "close:Q"]
+        ).properties(height=300)
 
-    # Mentions as bars (separate chart below)
-    mentions_chart = alt.Chart(hist).mark_bar(opacity=0.5, color="orange").encode(
-        x=alt.X("date:T"),
-        y=alt.Y("mentions:Q", title="WSB Mentions"),
-        tooltip=["date:T", "mentions:Q"]
-    ).properties(height=100)
+        # Mentions as bars (separate chart below)
+        mentions_chart = alt.Chart(hist).mark_bar(opacity=0.5, color="orange").encode(
+            x=alt.X("date:T"),
+            y=alt.Y("mentions:Q", title="WSB Mentions"),
+            tooltip=["date:T", "mentions:Q"]
+        ).properties(height=100)
 
-    # Stack vertically (price on top, mentions below)
-    chart = alt.vconcat(price_chart, mentions_chart).resolve_scale(x="shared")
+        # Stack vertically (price on top, mentions below)
+        chart = alt.vconcat(price_chart, mentions_chart).resolve_scale(x="shared")
 
-    st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, use_container_width=True)
+else:
+    st.warning("No historical data for this ticker.")
